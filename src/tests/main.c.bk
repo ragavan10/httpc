@@ -1,0 +1,36 @@
+#include "httpc_err.h"
+#include "httpc_types.h"
+#include "httpc_utils.h"
+#include "httpc_str.h"
+#include <assert.h>
+#include <stdlib.h>
+
+int main()
+{
+
+    httpc_str_t single_path_seg = httpc_str_mk_string("/user");
+    httpc_str_t *tokens = NULL;
+    int num = 0;
+    httpc_err_e err = __httpc_utils_tokenize_path(&single_path_seg, &tokens, &num);
+    assert(err == HTTPC_ERR_NONE);
+    assert(num == 1);
+    httpc_str_t cmp_str1 = httpc_str_mk_string("user");
+    assert(httpc_str_cmp(tokens[0], cmp_str1));
+    free(tokens);
+
+
+    httpc_str_t multiple_path_seg = httpc_str_mk_string("/user/1");
+    httpc_str_t no_path_seg = httpc_str_mk_string("/");
+
+    /* httpc_str_t *tokens = NULL; */
+    /* int num = 0; */
+    err = __httpc_utils_tokenize_path(&multiple_path_seg, &tokens, &num);
+    assert(err == HTTPC_ERR_NONE);
+    assert(num == 2);
+    httpc_str_t cmp_str2 = httpc_str_mk_string("1");
+    assert(httpc_str_cmp(tokens[0], cmp_str1));
+    assert(httpc_str_cmp(tokens[1], cmp_str2));
+    free(tokens);
+
+    return 0;
+}

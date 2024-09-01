@@ -1,0 +1,185 @@
+#include <check.h>
+#include <stdlib.h>
+
+#include "httpc.h"
+#include "httpc_err.h"
+#include "httpc_types.h"
+#include "httpc_utils.h"
+#include "httpc_str.h"
+
+
+
+START_TEST(test__httpc_tokenize_path_1)
+{
+
+    httpc_str_t single_path_seg = httpc_str_mk_string("/user");
+    httpc_str_t *tokens = NULL;
+    int num = 0;
+    httpc_err_e err = __httpc_utils_tokenize_path(&single_path_seg, &tokens, 
+            &num);
+    ck_assert(err == HTTPC_ERR_NONE);
+    ck_assert(num == 1);
+    httpc_str_t cmp_str1 = httpc_str_mk_string("user");
+    ck_assert(httpc_str_cmp(tokens[0], cmp_str1));
+    free(tokens);
+
+}
+END_TEST
+
+START_TEST(test__httpc_tokenize_path_2)
+{
+
+    httpc_str_t multiple_path_seg = httpc_str_mk_string("/user/1");
+    httpc_str_t *tokens = NULL;
+    int num = 0;
+    httpc_err_e err = __httpc_utils_tokenize_path(&multiple_path_seg, &tokens, 
+            &num);
+    ck_assert(err == HTTPC_ERR_NONE);
+    ck_assert(num == 2);
+    httpc_str_t cmp_str1 = httpc_str_mk_string("user");
+    httpc_str_t cmp_str2 = httpc_str_mk_string("1");
+    ck_assert(httpc_str_cmp(tokens[0], cmp_str1));
+    ck_assert(httpc_str_cmp(tokens[1], cmp_str2));
+    free(tokens);
+
+}
+END_TEST
+
+START_TEST(test__httpc_tokenize_path_3)
+{
+
+    httpc_str_t single_path_seg = httpc_str_mk_string("/");
+    httpc_str_t *tokens = NULL;
+    int num = 0;
+    httpc_err_e err = __httpc_utils_tokenize_path(&single_path_seg, &tokens, 
+            &num);
+    ck_assert(err == HTTPC_ERR_NONE);
+    ck_assert(num == 1);
+    httpc_str_t cmp_str1 = httpc_str_mk_string("");
+    ck_assert(httpc_str_cmp(tokens[0], cmp_str1));
+    free(tokens);
+
+}
+END_TEST
+
+START_TEST(test_httpc_cmp_path_1)
+{
+
+    httpc_str_t multiple_path_seg_val = httpc_str_mk_string("/user/<int:ida>");
+    httpc_str_t multiple_path_seg = httpc_str_mk_string("/user/1");
+    httpc_request_path_seg_t *seg = NULL;
+    int num = 0;
+    httpc_err_e err = httpc_utils_cmp_path(&multiple_path_seg, 
+            &multiple_path_seg_val, &seg, &num);
+    ck_assert(err == HTTPC_ERR_NONE);
+    ck_assert(num == 1);
+    httpc_str_t key = httpc_str_mk_string("ida");
+    httpc_str_t type = httpc_str_mk_string("int");
+    ck_assert(httpc_str_cmp(*seg->type, type));
+    ck_assert(httpc_str_cmp(*seg->key, key));
+    ck_assert_int_eq(*(int *)seg->val, 1);
+    __httpc_request_path_seg_cleanup(seg, num);
+}
+
+
+START_TEST(test_httpc_cmp_path_2)
+{
+
+    httpc_str_t multiple_path_seg_val = httpc_str_mk_string("/user/<str:username>");
+    httpc_str_t multiple_path_seg = httpc_str_mk_string("/user/john");
+    httpc_request_path_seg_t *seg = NULL;
+    int num = 0;
+    httpc_err_e err = httpc_utils_cmp_path(&multiple_path_seg, 
+            &multiple_path_seg_val, &seg, &num);
+    ck_assert(err == HTTPC_ERR_NONE);
+    ck_assert(num == 1);
+    httpc_str_t key = httpc_str_mk_string("username");
+    httpc_str_t type = httpc_str_mk_string("str");
+    ck_assert(httpc_str_cmp(*seg->type, type));
+    ck_assert(httpc_str_cmp(*seg->key, key));
+    ck_assert(!strncmp((char *)seg->val, "john", sizeof("john")));
+    __httpc_request_path_seg_cleanup(seg, num);
+}
+
+
+START_TEST(test_httpc_cmp_path_3)
+{
+
+    httpc_str_t multiple_path_seg_val = httpc_str_mk_string(
+            "/user/<int:id>/name/<str:username>");
+    httpc_str_t multiple_path_seg = httpc_str_mk_string(
+            "/user/102/name/john");
+    httpc_request_path_seg_t *seg = NULL;
+    int num = 0;
+    httpc_err_e err = httpc_utils_cmp_path(&multiple_path_seg, 
+            &multiple_path_seg_val, &seg, &num);
+    ck_assert(err == HTTPC_ERR_NONE);
+    ck_assert(num == 2);
+
+    httpc_str_t key1 = httpc_str_mk_string("id");
+    httpc_str_t key2 = httpc_str_mk_string("username");
+    httpc_str_t type1 = httpc_str_mk_string("int");
+    httpc_str_t type2 = httpc_str_mk_string("str");
+
+    ck_assert(httpc_str_cmp(*seg[0].type, type1));
+    ck_assert(httpc_str_cmp(*seg[0].key, key1));
+    ck_assert_int_eq(*(int *)seg[0].val, 102);
+
+    ck_assert(httpc_str_cmp(*seg[1].type, type2));
+    ck_assert(httpc_str_cmp(*seg[1].key, key2));
+    ck_assert(!strncmp((char *)seg[1].val, "john", sizeof("john")));
+    __httpc_request_path_seg_cleanup(seg, num);
+}
+
+
+START_TEST(test_httpc_cmp_path_4)
+{
+
+    httpc_str_t path = httpc_str_mk_string(
+            "/user/102/name/john");
+    httpc_request_path_seg_t *seg = NULL;
+    int num = 0;
+    httpc_err_e err = httpc_utils_cmp_path(&path, 
+            &path, &seg, &num);
+    ck_assert(err == HTTPC_ERR_NONE);
+    ck_assert(num == 0);
+    ck_assert(seg == NULL);
+    __httpc_request_path_seg_cleanup(seg, num);
+}
+
+Suite * httpc_utils_suite(void)
+{
+    Suite *s;
+    TCase *tc_core;
+
+    s = suite_create("Utils");
+
+    /* Core test case */
+    tc_core = tcase_create("Core");
+
+    tcase_add_test(tc_core, test__httpc_tokenize_path_1);
+    tcase_add_test(tc_core, test__httpc_tokenize_path_2);
+    tcase_add_test(tc_core, test__httpc_tokenize_path_3);
+    tcase_add_test(tc_core, test_httpc_cmp_path_1);
+    tcase_add_test(tc_core, test_httpc_cmp_path_2);
+    tcase_add_test(tc_core, test_httpc_cmp_path_3);
+    tcase_add_test(tc_core, test_httpc_cmp_path_4);
+    suite_add_tcase(s, tc_core);
+
+    return s;
+}
+
+int main(void)
+{
+    int number_failed;
+    Suite *s;
+    SRunner *sr;
+
+    s = httpc_utils_suite();
+    sr = srunner_create(s);
+
+    srunner_run_all(sr, CK_NORMAL);
+    number_failed = srunner_ntests_failed(sr);
+    srunner_free(sr);
+    return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+}
