@@ -120,8 +120,9 @@ void *httpc_process_raw_request(void *arg)
 			    ((endpoint_t *)(param->cntx->endpoint[i]))->p,
 			    '<')) {
 			ret = httpc_utils_cmp_path(
+				r->request_line->path,
 				((endpoint_t *)(param->cntx->endpoint[i]))->p,
-				r->request_line->path, &seg, &num_seg);
+				&seg, &num_seg);
 			if (seg && num_seg > 0 && ret == HTTPC_ERR_NONE)
 				cmp = true;
 		} else {
